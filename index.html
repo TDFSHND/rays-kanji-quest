@@ -13,32 +13,48 @@
         .is-flipped { transform: rotateY(180deg); }
         .card-front, .card-back { backface-visibility: hidden; position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
         .card-back { transform: rotateY(180deg); }
+        /* ヒント用の切り抜き（左側だけ見せる） */
+        .hint-mask { clip-path: inset(0 60% 0 0); filter: blur(1px); }
     </style>
 </head>
 <body class="bg-indigo-50 h-screen flex flex-col items-center p-6 overflow-hidden">
+
     <div class="w-full max-w-2xl flex justify-between items-center mb-8">
         <button onclick="location.reload()" class="bg-white px-4 py-2 rounded-full shadow text-indigo-500 font-bold">最初から</button>
         <div id="progress" class="text-xl font-black text-indigo-400">1 / 6</div>
-        <button onclick="toggleMode()" id="mode-badge" class="bg-orange-500 text-white px-4 py-2 rounded-full shadow font-bold text-sm">いま：読み練習</button>
+        <button onclick="toggleMode()" id="mode-badge" class="bg-orange-500 text-white px-4 py-2 rounded-full shadow font-bold text-sm">いま：読み</button>
     </div>
+
     <div id="game-screen" class="w-full max-w-2xl flex-1 flex flex-col items-center justify-center">
         <div class="card-flip w-full h-[450px]">
-            <div id="card-inner" class="card-inner w-full h-full relative" onclick="flipCard()">
-                <div class="card-front bg-white rounded-[3rem] shadow-2xl border-b-8 border-indigo-200 flex flex-col items-center justify-center p-8 text-center">
-                    <div id="q-text" class="text-[12rem] leading-none text-slate-800"></div>
-                    <div id="q-sub" class="mt-8 text-3xl text-indigo-400">タップで答えを見る</div>
+            <div id="card-inner" class="card-inner w-full h-full relative">
+                
+                <div onclick="flipCard()" class="card-front bg-white rounded-[3rem] shadow-2xl border-b-8 border-indigo-200 flex flex-col items-center justify-center p-8 text-center">
+                    <div id="q-text" class="kanji-font leading-none text-slate-800"></div>
+                    <div id="hint-display" class="hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[12rem] text-slate-300 hint-mask pointer-events-none"></div>
+                    <div id="q-sub" class="mt-8 text-3xl text-indigo-400">タップで答え</div>
                 </div>
-                <div class="card-back bg-indigo-600 rounded-[3rem] shadow-2xl flex flex-col items-center justify-center p-8 text-center text-white">
-                    <div id="a-text" class="text-[10rem] leading-none mb-6"></div>
-                    <div id="a-extra" class="text-4xl font-bold leading-relaxed opacity-90"></div>
+
+                <div onclick="flipCard()" class="card-back bg-indigo-600 rounded-[3rem] shadow-2xl flex flex-col items-center justify-center p-8 text-center text-white">
+                    <div id="a-text" class="leading-none mb-6"></div>
+                    <div id="a-extra" class="text-4xl font-bold opacity-90"></div>
                 </div>
+
             </div>
         </div>
-        <div class="flex gap-6 w-full mt-12">
-            <button onclick="prev()" class="flex-1 bg-white text-indigo-500 py-6 rounded-3xl font-bold text-2xl shadow-lg active:translate-y-1 transition-all border-b-4 border-indigo-100">もどる</button>
-            <button onclick="next()" class="flex-1 bg-indigo-500 text-white py-6 rounded-3xl font-bold text-2xl shadow-lg active:translate-y-1 transition-all border-b-4 border-indigo-700">つぎへ！</button>
+
+        <div class="flex flex-col gap-4 w-full mt-8">
+            <button id="hint-btn" onclick="showHint()" class="hidden w-full bg-yellow-400 text-yellow-900 py-3 rounded-2xl font-bold text-xl shadow-md active:scale-95 transition">
+                わかんない！ヒント💡
+            </button>
+            
+            <div class="flex gap-6 w-full">
+                <button onclick="prev()" class="flex-1 bg-white text-indigo-500 py-6 rounded-3xl font-bold text-2xl shadow-lg border-b-4 border-indigo-100">もどる</button>
+                <button onclick="next()" class="flex-1 bg-indigo-500 text-white py-6 rounded-3xl font-bold text-2xl shadow-lg border-b-4 border-indigo-700">つぎへ！</button>
+            </div>
         </div>
     </div>
+
     <script>
         const masterData = [
             { kanji: "央", yomi: "オウ", imi: "中央（ちゅうおう）に立つ" },
@@ -48,62 +64,83 @@
             { kanji: "昭", yomi: "ショウ", imi: "昭和（しょうわ）という時代" },
             { kanji: "和", yomi: "ワ", imi: "平和（へいわ）を守ろう" }
         ];
+
         let currentIndex = 0;
         let isYomiMode = true;
         let flipped = false;
+
         function updateDisplay() {
             const data = masterData[currentIndex];
             const qText = document.getElementById('q-text');
             const aText = document.getElementById('a-text');
             const aExtra = document.getElementById('a-extra');
             const qSub = document.getElementById('q-sub');
+            const hintBtn = document.getElementById('hint-btn');
+            const hintDisp = document.getElementById('hint-display');
+
+            hintDisp.classList.add('hidden'); // ヒントを隠す
+            hintDisp.innerText = data.kanji;
+
             if (isYomiMode) {
                 qText.innerText = data.kanji;
-                qText.style.fontSize = "12rem";
+                qText.className = "text-[12rem] leading-none text-slate-800";
                 aText.innerText = data.yomi;
-                aText.style.fontSize = "8rem";
+                aText.className = "text-[8rem] leading-none mb-6";
                 aExtra.innerText = data.imi;
-                qSub.innerText = "これはなんて読む？";
+                qSub.innerText = "なんて読む？";
+                hintBtn.classList.add('hidden');
             } else {
                 qText.innerText = data.yomi;
-                qText.style.fontSize = "6rem";
+                qText.className = "text-[5rem] leading-tight text-indigo-600 px-4";
                 aText.innerText = data.kanji;
-                aText.style.fontSize = "12rem";
+                aText.className = "text-[12rem] leading-none mb-6";
                 aExtra.innerText = data.imi;
-                qSub.innerText = "漢字で書けるかな？";
+                qSub.innerText = "漢字で書くと？";
+                hintBtn.classList.remove('hidden');
             }
-            document.getElementById('progress').innerText = (currentIndex + 1) + ' / ' + masterData.length;
+
+            document.getElementById('progress').innerText = `${currentIndex + 1} / ${masterData.length}`;
             resetCard();
         }
+
+        function showHint() {
+            document.getElementById('hint-display').classList.remove('hidden');
+        }
+
         function flipCard() {
             flipped = !flipped;
             document.getElementById('card-inner').classList.toggle('is-flipped', flipped);
         }
+
         function resetCard() {
             flipped = false;
             document.getElementById('card-inner').classList.remove('is-flipped');
         }
+
         function next() {
             if (currentIndex < masterData.length - 1) {
                 currentIndex++;
                 updateDisplay();
             } else {
-                alert("コンプリート！よくがんばったね！");
+                alert("ぜんぶクリア！Rayくん、天才じゃない！？👑");
             }
         }
+
         function prev() {
             if (currentIndex > 0) {
                 currentIndex--;
                 updateDisplay();
             }
         }
+
         function toggleMode() {
             isYomiMode = !isYomiMode;
-            document.getElementById('mode-badge').innerText = isYomiMode ? "いま：読み練習" : "いま：書き練習";
+            document.getElementById('mode-badge').innerText = isYomiMode ? "いま：読み" : "いま：書き";
             document.getElementById('mode-badge').classList.toggle('bg-orange-500');
-            document.getElementById('mode-badge').classList.toggle('bg-blue-500');
+            document.getElementById('mode-badge').classList.toggle('bg-blue-600');
             updateDisplay();
         }
+
         updateDisplay();
     </script>
 </body>
